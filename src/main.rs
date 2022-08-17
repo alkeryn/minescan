@@ -3,7 +3,8 @@ mod scan;
 
 // #![feature(concat_bytes)]
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
 
     // let narg = &args[1..];
@@ -19,11 +20,9 @@ fn main() {
         port = 25565;
     }
 
-    match scan::scanip(ip.to_owned(), Some(port)) {
+    match scan::scanip_timeout(ip.to_owned(), Some(port)).await {
         Ok(d) => {
-            if d.len() > 0 {
                 println!("IP {}:\n{}",ip,d)
-            }
         },
         Err(_) => return
     };
