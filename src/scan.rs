@@ -91,8 +91,8 @@ async fn scanip(ip: String, port: Option<u16>) -> std::io::Result<String>{ // 1.
     Err(std::io::Error::new(std::io::ErrorKind::Other, "Not mc server"))
 }
 
-pub async fn scanip_timeout(ip: String, port: Option<u16>) -> std::io::Result<String> {
-    let timeout = 500;
+pub async fn scanip_timeout(ip: String, port: Option<u16>, timeout: Option<u64>) -> std::io::Result<String> {
+    let timeout = timeout.unwrap_or(500);
     tokio::time::timeout(Duration::from_millis(timeout), scanip(ip, port)).await?
 }
 
