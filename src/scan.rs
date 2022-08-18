@@ -25,18 +25,6 @@ fn pack_data(data: String) -> String {
     nstring + &data
 }
 
-#[allow(dead_code)]
-fn read_n_bytes(stream: &mut std::net::TcpStream, n: usize) -> std::io::Result<String> {
-
-    let mut buffer = vec![0u8;n];
-    let mut string = String::new();
-
-    stream.read_exact(&mut buffer)?; // need exact to not go over
-    string += &buffer.to_string();
-
-    Ok(string)
-}
-
 async fn read_varint(stream: &mut TcpStream) -> std::io::Result<usize> {
     let mut d : usize = 0;
     let mut buffer = [0u8;1];
@@ -80,7 +68,7 @@ async fn scanip(ip: String, port: Option<u16>) -> std::io::Result<String>{ // 1.
     stream.read_exact(&mut firstchar).await?;
     let mut reply = String::new();
 
-    if firstchar[0] == b'{' && lenght < MAXLENGHT {
+    if firstchar[0] == b'{' && lenght < MAXLENGHT && lenght != 0 {
         reply.push(firstchar[0] as char);
         let mut buffer = vec![0u8;lenght - 1];
         stream.read_exact(&mut buffer).await?;

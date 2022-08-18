@@ -37,13 +37,13 @@ fn toaddr(address: String) -> (String, u16) {
     (ip.to_owned(),port)
 }
 
-fn handle(result: std::io::Result<String>, addr: String, verbose: bool) {
+fn handle(result: std::io::Result<String>, addr: String, args: &Args) {
     match result {
         Ok(d) => {
             println!("IP {}:\n{}",addr,d)
         },
         Err(e) => {
-            if verbose {
+            if args.verbose {
                 eprintln!("IP: {}\n{}",addr, e)
             }
         }
@@ -54,10 +54,10 @@ fn handle(result: std::io::Result<String>, addr: String, verbose: bool) {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    if let Some(address) = args.address {
+    if let Some(address) = args.address.clone() {
         let addr = toaddr(address);
         let result = scan::scanip_timeout(addr.0.clone(), Some(addr.1), Some(args.timeout)).await;
-        handle(result,addr.0,args.verbose);
+        handle(result,addr.0,&args);
     }
     else {
         if atty::is(atty::Stream::Stdin) {
@@ -73,7 +73,7 @@ async fn main() -> std::io::Result<()> {
             if let Ok(address) = address {
                 let addr = toaddr(address);
                 let result = scan::scanip_timeout(addr.0.clone(), Some(addr.1), Some(args.timeout)).await;
-                handle(result,addr.0,args.verbose);
+                handle(result,addr.0,&args);
             }
         }).await;
     }
