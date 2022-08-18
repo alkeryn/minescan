@@ -1,4 +1,3 @@
-use std::io::prelude::*;
 use std::net::ToSocketAddrs;
 use tokio::net::TcpStream;
 use std::time::Duration;
@@ -44,7 +43,7 @@ async fn scanip(ip: String, port: Option<u16>) -> std::io::Result<String>{ // 1.
 
     let port : u16 = port.unwrap_or(25565);
     let address = [ip.clone(),port.to_string()].join(":");
-    const MAXLENGHT : usize = usize::pow(2,13);
+    const MAXLENGHT : usize = usize::pow(2,14);
 
     let sockaddr : Vec<_> = address.to_socket_addrs()?.collect();
     let mut stream = TcpStream::connect(sockaddr[sockaddr.len() - 1]).await?;
