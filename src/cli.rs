@@ -20,20 +20,20 @@ pub struct DefaultArgs {
 }
 
 pub trait Writer {
-    fn handle(&self,result: std::io::Result<String>, addr: String, args: &DefaultArgs);
+    fn handle(&self,result: std::io::Result<String>, ip: String, port: u16, args: &DefaultArgs);
 }
 
-pub struct DefaultWriter {} // possibly make args part of it
+pub struct DefaultWriter {}
 
 impl Writer for DefaultWriter {
-    fn handle(&self,result: std::io::Result<String>, addr: String, args: &DefaultArgs) {
+    fn handle(&self,result: std::io::Result<String>, ip: String, _port: u16, args: &DefaultArgs) {
         match result {
             Ok(d) => {
-                println!("IP {}:\n{}",addr,d.replace('\n',"")) // i don't want newlines for parsing
+                println!("IP {}:\n{}",ip,d.replace('\n',"")) // i don't want newlines for parsing
             },
             Err(e) => {
                 if args.verbose {
-                    eprintln!("IP: {}\n{}",addr, e)
+                    eprintln!("IP: {}\n{}",ip, e)
                 }
             }
         }
@@ -53,12 +53,10 @@ fn toaddr(address: String) -> (String,u16) {
     (ip.to_owned(),port)
 }
 
-pub async fn run(args: &DefaultArgs, writer: impl Writer, cmd: &mut clap::App<'_>) -> std::io::Result<()> {
+pub async fn run(writer: impl Writer, args: &DefaultArgs, cmd: &mut clap::App<'_>) -> std::io::Result<()> {
 
     if let Some(address) = args.address.clone() {
-        let (ip,port) = toaddr(address);
-        let result = scan::scanip_timeout(ip.clone(), Some(port), Some(args.timeout)).await;
-        writer.handle(result,ip,args);
+        run_block(&writer, address, args).await;
     }
     else {
         if atty::is(atty::Stream::Stdin) {
@@ -75,16 +73,21 @@ pub async fn run(args: &DefaultArgs, writer: impl Writer, cmd: &mut clap::App<'_
             }
         });
 
-        run_stream(&args, writer, iter).await;
+        run_stream(writer, iter, args).await;
     }
     Ok(())
 }
 
 #[inline(always)]
-pub async fn run_stream(args: &DefaultArgs, writer: impl Writer, iter: impl futures::Stream<Item = String>) {
+pub async fn run_stream(writer: impl Writer, iter: impl futures::Stream<Item = String>, args: &DefaultArgs) {
     iter.for_each_concurrent(args.concurency, | address | async {
+        run_block(&writer, address, args).await;
+    }).await;
+}
+
+#[inline(always)]
+pub async fn run_block(writer: &impl Writer, address: String, args: &DefaultArgs) {
         let (ip,port) = toaddr(address);
         let result = scan::scanip_timeout(ip.clone(), Some(port), Some(args.timeout)).await;
-        writer.handle(result,ip,args);
-    }).await;
+        writer.handle(result,ip,port,args);
 }

@@ -1,8 +1,9 @@
 [package]
 name = "minescan"
 authors = ["@alkeryn"]
-version = "0.9.0"
+version = "0.9.2"
 edition = "2021"
+description = "Minescan, a minecraft server scanner cli tool and library written for extensibility"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

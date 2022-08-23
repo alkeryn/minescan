@@ -1,11 +1,10 @@
-use clap::Parser;
-use clap::CommandFactory;
+use clap::{Parser,CommandFactory};
 mod scan;
 mod cli;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
-pub struct Args {
+struct Args {
     #[clap(flatten)]
     default: cli::DefaultArgs,
 }
@@ -15,5 +14,5 @@ async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     let writer = cli::DefaultWriter {};
-    cli::run(&args.default, writer, &mut Args::command()).await
+    cli::run(writer,&args.default, &mut Args::command()).await
 }
