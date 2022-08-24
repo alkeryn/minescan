@@ -13,6 +13,7 @@ struct Args {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    let writer = cli::DefaultWriter {};
-    cli::run(writer,&args.default, &mut Args::command()).await
+    let rw = cli::ReadWriter::new(args.default.clone(),Args::command());
+    let _ = cli::run(rw.clone(), rw, &args.default).await;
+    Ok(())
 }

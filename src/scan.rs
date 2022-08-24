@@ -36,10 +36,9 @@ async fn read_varint(stream: &mut TcpStream) -> std::io::Result<usize> {
         }
     }
     return Err(std::io::Error::new(std::io::ErrorKind::Other, "VarInt too big!"))
-
 }
 
-async fn scanip(ip: String, port: Option<u16>) -> std::io::Result<String>{ // 1.7+
+pub async fn scanip(ip: String, port: Option<u16>) -> std::io::Result<String>{ // 1.7+
 
     let port : u16 = port.unwrap_or(25565);
     let address = [ip.clone(),port.to_string()].join(":");

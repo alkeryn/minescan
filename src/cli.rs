@@ -1,7 +1,7 @@
 use crate::scan;
 use futures::{stream, StreamExt};
 
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug,Clone)]
 pub struct DefaultArgs {
     /// Address
     pub address: Option<String>,
@@ -20,13 +20,30 @@ pub struct DefaultArgs {
 }
 
 pub trait Writer {
-    fn handle(&self,result: std::io::Result<String>, ip: String, port: u16, args: &DefaultArgs);
+    fn handle(&self,result: std::io::Result<String>, ip: String, port: u16);
 }
 
-pub struct DefaultWriter {}
+pub type ReaderRet = std::pin::Pin<Box<dyn futures::Stream<Item = String>>>;
+pub trait Reader {
+    type ErrorType;
+    fn get_stream(&mut self) -> std::result::Result<ReaderRet, Self::ErrorType>;
+}
 
-impl Writer for DefaultWriter {
-    fn handle(&self,result: std::io::Result<String>, ip: String, _port: u16, args: &DefaultArgs) {
+#[derive(Clone)]
+pub struct ReadWriter<'a> {
+    pub args: DefaultArgs,
+    pub cmd: clap::App<'a>
+}
+
+impl<'a> ReadWriter<'a> {
+    pub fn new(args: DefaultArgs, cmd: clap::App<'a>) -> Self {
+        Self { args: args, cmd: cmd }
+    }
+}
+
+impl Writer for ReadWriter<'_> {
+    fn handle(&self,result: std::io::Result<String>, ip: String, _port: u16) {
+        let args = &self.args;
         match result {
             Ok(d) => {
                 println!("IP {}:\n{}",ip,d.replace('\n',"")) // i don't want newlines for parsing
@@ -36,6 +53,33 @@ impl Writer for DefaultWriter {
                     eprintln!("IP: {}\n{}",ip, e)
                 }
             }
+        }
+    }
+}
+
+impl Reader for ReadWriter<'_> {
+    type ErrorType = std::io::Error;
+    fn get_stream(&mut self) -> std::result::Result<ReaderRet, Self::ErrorType> {
+        let args = &self.args;
+        let cmd = &mut self.cmd;
+        if let Some(address) = args.address.clone() {
+            return Ok(stream::iter([address]).boxed())
+        }
+        else {
+            if atty::is(atty::Stream::Stdin) {
+                cmd.print_help()?;
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, "No Stdin"))
+            }
+
+            let lines = std::io::stdin().lines();
+            let iter = stream::iter(lines);
+            let iter = iter.filter_map( |x| async {
+                match x {
+                    Ok(x) => Some(x),
+                    Err(_) => None
+                }
+            });
+            return Ok(iter.boxed_local())
         }
     }
 }
@@ -53,28 +97,9 @@ fn toaddr(address: String) -> (String,u16) {
     (ip.to_owned(),port)
 }
 
-pub async fn run(writer: impl Writer, args: &DefaultArgs, cmd: &mut clap::App<'_>) -> std::io::Result<()> {
-
-    if let Some(address) = args.address.clone() {
-        run_block(&writer, address, args).await;
-    }
-    else {
-        if atty::is(atty::Stream::Stdin) {
-            cmd.print_help()?;
-            return Ok(());
-        }
-
-        let lines = std::io::stdin().lines();
-        let iter = stream::iter(lines);
-        let iter = iter.filter_map( |x| async {
-            match x {
-                Ok(x) => Some(x),
-                Err(_) => None
-            }
-        });
-
-        run_stream(writer, iter, args).await;
-    }
+pub async fn run<R: Reader>(writer: impl Writer, mut reader: R, args: &DefaultArgs) -> Result<(), R::ErrorType> {
+    let iter = reader.get_stream()?;
+    run_stream(writer, iter, args).await;
     Ok(())
 }
 
@@ -89,5 +114,5 @@ pub async fn run_stream(writer: impl Writer, iter: impl futures::Stream<Item = S
 pub async fn run_block(writer: &impl Writer, address: String, args: &DefaultArgs) {
         let (ip,port) = toaddr(address);
         let result = scan::scanip_timeout(ip.clone(), Some(port), Some(args.timeout)).await;
-        writer.handle(result,ip,port,args);
+        writer.handle(result,ip,port);
 }
