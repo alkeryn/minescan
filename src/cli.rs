@@ -1,7 +1,8 @@
 use crate::scan;
 use futures::{stream, StreamExt};
+use async_trait::async_trait;
 
-#[derive(clap::Args, Debug,Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct DefaultArgs {
     /// Address
     pub address: Option<String>,
@@ -19,14 +20,17 @@ pub struct DefaultArgs {
     pub verbose: bool,
 }
 
+#[async_trait]
 pub trait Writer {
-    fn handle(&self,result: std::io::Result<String>, ip: String, port: u16);
+    async fn handle(&self,result: std::io::Result<String>, ip: String, port: u16);
 }
 
 pub type ReaderRet = std::pin::Pin<Box<dyn futures::Stream<Item = String>>>;
+
+#[async_trait]
 pub trait Reader {
     type ErrorType;
-    fn get_stream(&mut self) -> std::result::Result<ReaderRet, Self::ErrorType>;
+    async fn get_stream(&mut self) -> std::result::Result<ReaderRet, Self::ErrorType>;
 }
 
 #[derive(Clone)]
@@ -41,8 +45,9 @@ impl<'a> ReadWriter<'a> {
     }
 }
 
+#[async_trait]
 impl Writer for ReadWriter<'_> {
-    fn handle(&self,result: std::io::Result<String>, ip: String, _port: u16) {
+    async fn handle(&self,result: std::io::Result<String>, ip: String, _port: u16) {
         let args = &self.args;
         match result {
             Ok(d) => {
@@ -57,9 +62,10 @@ impl Writer for ReadWriter<'_> {
     }
 }
 
+#[async_trait]
 impl Reader for ReadWriter<'_> {
     type ErrorType = std::io::Error;
-    fn get_stream(&mut self) -> std::result::Result<ReaderRet, Self::ErrorType> {
+    async fn get_stream(&mut self) -> std::result::Result<ReaderRet, Self::ErrorType> {
         let args = &self.args;
         let cmd = &mut self.cmd;
         if let Some(address) = args.address.clone() {
@@ -98,7 +104,7 @@ fn toaddr(address: String) -> (String,u16) {
 }
 
 pub async fn run<R: Reader>(writer: impl Writer, mut reader: R, args: &DefaultArgs) -> Result<(), R::ErrorType> {
-    let iter = reader.get_stream()?;
+    let iter = reader.get_stream().await?;
     run_stream(writer, iter, args).await;
     Ok(())
 }
@@ -114,5 +120,5 @@ pub async fn run_stream(writer: impl Writer, iter: impl futures::Stream<Item = S
 pub async fn run_block(writer: &impl Writer, address: String, args: &DefaultArgs) {
         let (ip,port) = toaddr(address);
         let result = scan::scanip_timeout(ip.clone(), Some(port), Some(args.timeout)).await;
-        writer.handle(result,ip,port);
+        writer.handle(result,ip,port).await;
 }

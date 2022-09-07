@@ -14,3 +14,5 @@ futures = "0.3.23"
 
 clap = { version = "3.2.17", features = ["derive"] }
 atty = "0.2.14"
+
+async-trait = "0.1.57"
