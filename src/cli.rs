@@ -95,10 +95,10 @@ fn toaddr(address: String) -> (String,u16) {
     let ip = split[0];
     let port : u16;
     if split.len() > 1 {
-        port  = split[1].parse().unwrap_or(25565);
+        port  = split[1].parse().unwrap_or(scan::DEFAULTPORT);
     }
     else {
-        port = 25565;
+        port = scan::DEFAULTPORT;
     }
     (ip.to_owned(),port)
 }

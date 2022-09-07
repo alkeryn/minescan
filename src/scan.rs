@@ -3,6 +3,8 @@ use tokio::net::TcpStream;
 use std::time::Duration;
 use tokio::io::{AsyncWriteExt, AsyncReadExt};
 
+pub const DEFAULTPORT : u16 = 25565;
+
 trait ToString {
     fn to_string(&self) -> String;
 }
@@ -40,13 +42,13 @@ async fn read_varint(stream: &mut TcpStream) -> std::io::Result<usize> {
 
 pub async fn scanip(ip: String, port: Option<u16>) -> std::io::Result<String>{ // 1.7+
 
-    let port : u16 = port.unwrap_or(25565);
+    let port : u16 = port.unwrap_or(DEFAULTPORT);
     let address = [ip.clone(),port.to_string()].join(":");
     const MAXLENGHT : usize = usize::pow(2,14);
 
-    let sockaddr : Vec<_> = address.to_socket_addrs()?.collect();
-    let mut stream = TcpStream::connect(sockaddr[sockaddr.len() - 1]).await?;
-    // println!("address: {}", sockaddr[sockaddr.len() - 1]);
+    let sockaddr : Vec<_> = address.to_socket_addrs()?.filter( |x| x.is_ipv4() ).collect(); // only ipv4
+    let sockaddr = sockaddr[0];
+    let mut stream = TcpStream::connect(sockaddr).await?;
 
     // stream.set_read_timeout(Some(Duration::from_millis(timeout)))?;
     // stream.set_write_timeout(Some(Duration::from_millis(timeout)))?;
